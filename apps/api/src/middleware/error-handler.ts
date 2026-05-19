@@ -2,7 +2,7 @@ import type { ErrorRequestHandler } from 'express';
 import { ZodError } from 'zod';
 import type { ApiErrorBody } from '@repo/shared';
 import { logger } from '../utils/logger.js';
-import { AppError, isAppError } from '../utils/errors.js';
+import { isAppError } from '../utils/errors.js';
 
 // Single funnel for all errors. Maps:
 //   - ZodError    → 400 VALIDATION_ERROR with issues

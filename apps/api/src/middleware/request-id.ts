@@ -1,13 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import type { RequestHandler } from 'express';
 
-const HEADER = 'x-request-id';
+// Request augmentation (req.id, req.signal) lives in ../types/express.d.ts.
 
-declare module 'express-serve-static-core' {
-  interface Request {
-    id: string;
-  }
-}
+const HEADER = 'x-request-id';
 
 // Accept an inbound x-request-id (useful when behind a gateway that already
 // generates one) or mint a new UUID. Always echo it back on the response so

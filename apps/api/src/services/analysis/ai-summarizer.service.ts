@@ -13,7 +13,7 @@
 //     turn varies per repo so we don't cache it.
 
 import Anthropic from '@anthropic-ai/sdk';
-import { z } from 'zod';
+import { type z } from 'zod';
 import { analysisResultSchema, type FileTreeNode } from '@repo/shared';
 
 import { env } from '../../config/env.js';

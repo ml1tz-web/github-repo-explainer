@@ -3,8 +3,12 @@
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    // Bundler resolution lets us consume @repo/shared's extensionless internal
+    // imports cleanly. We still emit ESM via tsup; tsx watch handles dev. The
+    // strict NodeNext is the right answer for a pure-Node project; since we
+    // bundle, Bundler matches reality.
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
     "types": ["node"],
     "baseUrl": ".",
     "paths": {
