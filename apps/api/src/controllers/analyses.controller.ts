@@ -4,6 +4,8 @@ import type {
   AnalysisDto,
   AnalysisResult,
   CreateAnalysisResponse,
+  RecentAnalysesResponse,
+  RecentAnalysisDto,
 } from '@repo/shared';
 
 import { NotFoundError } from '../utils/errors.js';
@@ -32,6 +34,30 @@ export const getAnalysis: RequestHandler = async (req, res) => {
   if (!row) throw new NotFoundError('Analysis');
   res.json({ analysis: toDto(row) });
 };
+
+// GET /api/v1/analyses/recent?limit=N
+// Powers the "Recently analyzed" row on the landing page. Returns a slim
+// projection — full results aren't needed for chips.
+export const getRecentAnalyses: RequestHandler = async (req, res) => {
+  const raw = Number(req.query.limit);
+  const limit = Number.isFinite(raw) && raw > 0 ? Math.min(raw, 12) : 4;
+  const rows = await analysisRepository.findRecentCompleted(limit);
+  const body: RecentAnalysesResponse = {
+    analyses: rows.map(toRecentDto),
+  };
+  res.json(body);
+};
+
+function toRecentDto(row: Analysis): RecentAnalysisDto {
+  const result = row.result as AnalysisResult | null;
+  return {
+    id: row.id,
+    repoOwner: row.repoOwner,
+    repoName: row.repoName,
+    summary: result?.summary ?? null,
+    createdAt: row.createdAt.toISOString(),
+  };
+}
 
 // ---------------------------------------------------------------------------
 // DTO mapping. Prisma Date → ISO string; JsonValue → typed result.

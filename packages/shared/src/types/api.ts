@@ -40,3 +40,34 @@ export interface ApiErrorBody {
     issues?: Array<{ path: string; message: string }>;
   };
 }
+
+// ---------------------------------------------------------------------------
+// Landing-page suggestion endpoints
+// ---------------------------------------------------------------------------
+
+export interface RecentAnalysisDto {
+  id: string;
+  repoOwner: string;
+  repoName: string;
+  /** Optional one-liner pulled from the result summary. */
+  summary: string | null;
+  createdAt: string;
+}
+
+export interface RecentAnalysesResponse {
+  analyses: RecentAnalysisDto[];
+}
+
+export interface TrendingRepo {
+  owner: string;
+  name: string;
+  url: string;
+  description: string | null;
+  stars: number;
+}
+
+export interface TrendingResponse {
+  repos: TrendingRepo[];
+  /** True if the response came from cache (≤ 1 hour old). */
+  cached: boolean;
+}

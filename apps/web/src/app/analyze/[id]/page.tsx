@@ -5,7 +5,7 @@ import { analysisResultSchema } from '@repo/shared';
 
 import { env } from '@/config/env';
 import { AnalysisResult } from '@/components/analysis/analysis-result';
-import { ThemeToggle } from '@/components/theme-toggle';
+import { SiteHeader } from '@/components/site-header';
 
 // Server component. Fetches the analysis by id on the server side.
 // Uses API_URL when set (docker-compose internal hostname), else falls back
@@ -39,10 +39,7 @@ export default async function AnalyzePage({ params }: PageProps) {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="flex items-center justify-between border-b border-[var(--color-border)] px-6 py-4">
-        <div className="font-mono text-sm font-semibold">repo-explainer</div>
-        <ThemeToggle />
-      </header>
+      <SiteHeader />
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
         <AnalysisResult analysis={analysis} />
       </main>

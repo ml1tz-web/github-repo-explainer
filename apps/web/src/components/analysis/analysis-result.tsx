@@ -8,6 +8,7 @@ import { Markdown } from './markdown';
 import { TechStack } from './tech-stack';
 import { ImportantFiles } from './important-files';
 import { FileTree } from './file-tree';
+import { ShareButton } from './share-button';
 
 // Renders the full analysis. Top-level layout decisions:
 //   - Hero with repo identity + meta
@@ -26,13 +27,16 @@ export function AnalysisResult({ analysis }: { analysis: AnalysisDto }) {
   return (
     <article className="flex flex-col gap-8">
       <header className="flex flex-col gap-3">
-        <Link
-          href="/"
-          className="inline-flex w-fit items-center gap-1.5 text-xs text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]"
-        >
-          <ArrowLeft className="size-3.5" />
-          Analyze another repo
-        </Link>
+        <div className="flex items-center justify-between">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-xs text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]"
+          >
+            <ArrowLeft className="size-3.5" />
+            Analyze another repo
+          </Link>
+          <ShareButton />
+        </div>
 
         <h1 className="flex flex-wrap items-baseline gap-2 text-2xl font-semibold tracking-tight sm:text-3xl">
           <span className="text-[var(--color-muted-foreground)]">
