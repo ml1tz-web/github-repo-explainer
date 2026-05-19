@@ -1,0 +1,35 @@
+# Anything that shouldn't end up in the build context.
+# Each Dockerfile copies what it needs explicitly; this just trims the noise
+# (and keeps secrets out).
+
+**/node_modules
+**/.next
+**/dist
+**/build
+**/.turbo
+**/coverage
+**/.cache
+**/tmp
+
+.git
+.gitignore
+.github
+.vscode
+.idea
+.DS_Store
+
+# Env files — never bake secrets into images. Compose injects env at runtime.
+.env
+.env.*
+!.env.example
+
+# Logs
+**/*.log
+**/logs
+
+# Prisma generated client is regenerated inside the image.
+packages/prisma/generated
+
+# Docker meta
+docker-compose*.yml
+Dockerfile*

@@ -1,0 +1,55 @@
+# Typecheck + lint + build on every push and PR.
+# Cheap, fast, signals to anyone reading the repo that quality gates are wired up.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel superseded runs on the same branch — saves minutes on rapid pushes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      # These don't need real values for typecheck/lint/build — env validation
+      # only runs when the API starts, which CI never does. Provided so any
+      # build-time read doesn't choke.
+      ANTHROPIC_API_KEY: dummy-for-ci
+      DATABASE_URL: postgresql://placeholder@localhost:5432/placeholder
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @repo/prisma db:generate
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build

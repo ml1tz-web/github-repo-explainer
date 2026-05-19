@@ -1,0 +1,29 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Web (Next.js dev)",
+      "runtimeExecutable": "pnpm.cmd",
+      "runtimeArgs": ["--filter", "@repo/web", "dev"],
+      "port": 3000
+    },
+    {
+      "name": "API (Express + tsx watch)",
+      "runtimeExecutable": "pnpm.cmd",
+      "runtimeArgs": ["--filter", "@repo/api", "dev"],
+      "port": 4000
+    },
+    {
+      "name": "All apps (Turbo)",
+      "runtimeExecutable": "pnpm.cmd",
+      "runtimeArgs": ["dev"],
+      "port": 3000
+    },
+    {
+      "name": "Full stack (Docker Compose: postgres + api + web)",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": ["compose", "up", "--build"],
+      "port": 3000
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+// Prisma schema for GitHub Repo Explainer.
+// Generated client lives in ../generated/client (out of node_modules) so it
+// is colocated with the package and can be reasoned about explicitly.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Analysis
+// ---------------------------------------------------------------------------
+// An Analysis is one run of the pipeline for a (repoUrl, commitSha) pair.
+// Re-analyzing the same SHA is idempotent: we return the existing row.
+// Re-analyzing a moved branch (different SHA) creates a new row — history
+// is preserved and share links remain stable.
+// ---------------------------------------------------------------------------
+
+enum AnalysisStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model Analysis {
+  id           String         @id @default(cuid())
+  repoUrl      String         // normalized form: https://github.com/<owner>/<repo>
+  repoOwner    String
+  repoName     String
+  commitSha    String         // resolved at clone time (full 40-char SHA)
+  defaultBranch String?       // e.g. "main" — captured for display only
+  status       AnalysisStatus @default(PENDING)
+
+  // Structured AI output. Shape is validated by a zod schema in @repo/shared
+  // before insert, so consumers can safely cast on read.
+  result       Json?
+
+  // Failure diagnostics
+  errorCode    String?        // e.g. "REPO_TOO_LARGE", "CLONE_FAILED"
+  errorMessage String?
+
+  // Pipeline telemetry
+  tokensInput  Int?
+  tokensOutput Int?
+  durationMs   Int?
+
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@unique([repoUrl, commitSha], name: "repoUrl_commitSha")
+  @@index([repoUrl, createdAt(sort: Desc)])
+  @@index([status, createdAt])
+}

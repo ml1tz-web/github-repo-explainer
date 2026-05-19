@@ -1,0 +1,116 @@
+# Local development stack: postgres + api + web.
+#
+# Quick start:
+#   cp .env.example .env
+#   docker compose up --build
+#
+# The api container runs `prisma db push` on every start so the schema is
+# applied without needing checked-in migrations yet. Switch to
+# `prisma migrate deploy` once we have real migrations (Step 6+).
+#
+# Bind mounts: only source dirs are mounted. node_modules and build artifacts
+# stay inside the image (anonymous volumes shadow them), which is what makes
+# this work cross-platform — host-built native modules don't leak in.
+
+name: github-repo-explainer
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-explainer}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-explainer_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-explainer}
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-explainer} -d ${POSTGRES_DB:-explainer}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: dev
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      # File watching across bind mounts is unreliable on Windows/macOS without
+      # polling. Harmless on Linux. Cheap insurance.
+      CHOKIDAR_USEPOLLING: 'true'
+      API_PORT: 4000
+      API_LOG_LEVEL: ${API_LOG_LEVEL:-info}
+      WEB_ORIGIN: http://localhost:3000
+      # Container-to-container DB URL: host is the service name, not localhost.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-explainer}:${POSTGRES_PASSWORD:-explainer_dev_password}@postgres:5432/${POSTGRES_DB:-explainer}?schema=public
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-4-6}
+      CLONE_TMP_DIR: /app/tmp/clones
+      CLONE_MAX_REPO_SIZE_MB: ${CLONE_MAX_REPO_SIZE_MB:-200}
+      CLONE_TIMEOUT_MS: ${CLONE_TIMEOUT_MS:-60000}
+    ports:
+      - '4000:4000'
+    volumes:
+      # Source bind mounts — edits on the host trigger tsx --watch in the container.
+      - ./apps/api/src:/app/apps/api/src:cached
+      - ./packages/shared/src:/app/packages/shared/src:cached
+      - ./packages/prisma/prisma:/app/packages/prisma/prisma:cached
+      - ./packages/prisma/src:/app/packages/prisma/src:cached
+      # Anonymous volumes shadow the bind mount target — keep image's node_modules.
+      - /app/node_modules
+      - /app/apps/api/node_modules
+      - /app/packages/prisma/generated
+      # Persisted temp dir for clones (survives container restarts during dev).
+      - api_tmp:/app/tmp
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # On startup: regenerate prisma client (schema may have changed),
+    # push schema to db, then start dev server.
+    command: >
+      sh -c "pnpm --filter @repo/prisma exec prisma generate &&
+             pnpm --filter @repo/prisma exec prisma db push --skip-generate &&
+             pnpm --filter @repo/api dev"
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:4000/health || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      target: dev
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      WATCHPACK_POLLING: 'true'
+      # Browser-side calls go to localhost:4000 (host port mapping). The web
+      # container never calls the api directly — only the browser does.
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+    ports:
+      - '3000:3000'
+    volumes:
+      - ./apps/web/src:/app/apps/web/src:cached
+      - ./apps/web/public:/app/apps/web/public:cached
+      - ./apps/web/next.config.mjs:/app/apps/web/next.config.mjs:cached
+      - ./apps/web/postcss.config.mjs:/app/apps/web/postcss.config.mjs:cached
+      - ./apps/web/components.json:/app/apps/web/components.json:cached
+      - ./packages/shared/src:/app/packages/shared/src:cached
+      - /app/node_modules
+      - /app/apps/web/node_modules
+      - /app/apps/web/.next
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  api_tmp:
