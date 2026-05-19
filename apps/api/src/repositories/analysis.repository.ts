@@ -30,6 +30,15 @@ export const analysisRepository = {
     });
   },
 
+  /** Most recent successful analyses. Used for the landing page "Recent" row. */
+  findRecentCompleted(limit: number): Promise<Analysis[]> {
+    return prisma.analysis.findMany({
+      where: { status: AnalysisStatus.COMPLETED },
+      orderBy: { createdAt: 'desc' },
+      take: Math.min(Math.max(limit, 1), 20),
+    });
+  },
+
   /**
    * Insert a completed analysis. Throws Prisma.PrismaClientKnownRequestError
    * with code 'P2002' if a row already exists for the same (repoUrl, commitSha)

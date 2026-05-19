@@ -3,11 +3,20 @@
 // Landing-page form. Validates with the shared zod schema, posts to the API,
 // navigates to /analyze/[id] on success. Maps API error codes to friendly
 // messages so the user sees "Repository not found" instead of an HTTP code.
+//
+// Two suggestion rows live below the input:
+//   - Recently analyzed: links straight to /analyze/[id] (cache demo — instant)
+//   - Trending: fills the input; user still presses Analyze (a real pipeline run)
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, Loader2 } from 'lucide-react';
-import { githubUrlSchema } from '@repo/shared';
+import {
+  githubUrlSchema,
+  type RecentAnalysisDto,
+  type TrendingRepo,
+} from '@repo/shared';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ApiClientError, apiClient } from '@/lib/api-client';
@@ -24,10 +33,41 @@ const STAGE_MESSAGES = [
   'Analyzing with Claude…',
 ];
 
+// Curated fallback shown when /trending is empty AND no recents exist
+// (fresh deploy, GitHub down, etc.). Mix of sizes, all recognizable.
+const FALLBACK_TRENDING: TrendingRepo[] = [
+  { owner: 'expressjs', name: 'express', url: 'https://github.com/expressjs/express', description: null, stars: 0 },
+  { owner: 'tj', name: 'commander.js', url: 'https://github.com/tj/commander.js', description: null, stars: 0 },
+  { owner: 'vercel', name: 'swr', url: 'https://github.com/vercel/swr', description: null, stars: 0 },
+  { owner: 'sindresorhus', name: 'p-limit', url: 'https://github.com/sindresorhus/p-limit', description: null, stars: 0 },
+];
+
+const SUGGESTION_LIMIT = 4;
+
 export function AnalyzeForm() {
   const router = useRouter();
   const [url, setUrl] = useState('');
   const [state, setState] = useState<FormState>({ status: 'idle' });
+  const [recent, setRecent] = useState<RecentAnalysisDto[]>([]);
+  const [trending, setTrending] = useState<TrendingRepo[]>([]);
+
+  // Fetch suggestions on mount. Both calls are independent — Promise.allSettled
+  // means a failing /trending doesn't kill /recent and vice versa.
+  useEffect(() => {
+    const ctrl = new AbortController();
+    Promise.allSettled([
+      apiClient.getRecentAnalyses(SUGGESTION_LIMIT, ctrl.signal),
+      apiClient.getTrending(SUGGESTION_LIMIT, ctrl.signal),
+    ]).then(([recentRes, trendingRes]) => {
+      if (recentRes.status === 'fulfilled') setRecent(recentRes.value.analyses);
+      if (trendingRes.status === 'fulfilled' && trendingRes.value.repos.length > 0) {
+        setTrending(trendingRes.value.repos);
+      } else {
+        setTrending(FALLBACK_TRENDING);
+      }
+    });
+    return () => ctrl.abort();
+  }, []);
 
   const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -97,6 +137,42 @@ export function AnalyzeForm() {
       {isBusy && (
         <p className="text-sm text-[var(--color-muted-foreground)]">{state.message}</p>
       )}
+
+      <div className="flex flex-col gap-2 pt-2 text-xs">
+        {recent.length > 0 && (
+          <SuggestionRow label="Recently analyzed">
+            {recent.map((r) => (
+              <Link
+                key={r.id}
+                href={`/analyze/${r.id}`}
+                title={r.summary ?? undefined}
+                className={chipClasses}
+              >
+                {r.repoOwner}/{r.repoName}
+              </Link>
+            ))}
+          </SuggestionRow>
+        )}
+        {trending.length > 0 && (
+          <SuggestionRow label="Trending">
+            {trending.map((t) => (
+              <button
+                key={t.url}
+                type="button"
+                onClick={() => {
+                  setUrl(t.url);
+                  if (state.status === 'error') setState({ status: 'idle' });
+                }}
+                disabled={isBusy}
+                title={t.description ?? undefined}
+                className={`${chipClasses} disabled:cursor-not-allowed disabled:opacity-50`}
+              >
+                {t.owner}/{t.name}
+              </button>
+            ))}
+          </SuggestionRow>
+        )}
+      </div>
     </form>
   );
 }
@@ -127,6 +203,30 @@ function friendlyMessage(err: unknown): string {
     }
   }
   return err instanceof Error ? err.message : 'Something went wrong.';
+}
+
+// ---------------------------------------------------------------------------
+// presentation helpers
+// ---------------------------------------------------------------------------
+
+const chipClasses =
+  'rounded-full border border-[var(--color-border)] bg-transparent px-2.5 py-1 font-mono text-[var(--color-muted-foreground)] transition-colors hover:border-[var(--color-foreground)] hover:text-[var(--color-foreground)]';
+
+function SuggestionRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="w-24 shrink-0 text-[var(--color-muted-foreground)] sm:w-auto">
+        {label}:
+      </span>
+      {children}
+    </div>
+  );
 }
 
 function startStageTicker(set: (msg: string) => void): { stop: () => void } {

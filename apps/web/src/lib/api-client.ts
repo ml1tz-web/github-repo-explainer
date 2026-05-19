@@ -14,6 +14,8 @@ import type {
   AnalysisDto,
   CreateAnalysisRequest,
   CreateAnalysisResponse,
+  RecentAnalysesResponse,
+  TrendingResponse,
 } from '@repo/shared';
 import { env } from '@/config/env';
 
@@ -85,4 +87,10 @@ export const apiClient = {
     request<{ analysis: AnalysisDto }>(`/api/v1/analyses/${encodeURIComponent(id)}`, {
       signal,
     }),
+
+  getRecentAnalyses: (limit: number, signal?: AbortSignal) =>
+    request<RecentAnalysesResponse>(`/api/v1/analyses/recent?limit=${limit}`, { signal }),
+
+  getTrending: (limit: number, signal?: AbortSignal) =>
+    request<TrendingResponse>(`/api/v1/github/trending?limit=${limit}`, { signal }),
 };
