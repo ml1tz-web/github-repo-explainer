@@ -1,5 +1,5 @@
 # GitHub Repo Explainer
-
+![CI](https://github.com/ml1tz-web/github-repo-explainer/actions/workflows/ci.yml/badge.svg)
 Paste any public GitHub URL. An AI pipeline clones the repo, walks the file
 tree, picks the most informative subset of files, and asks Claude to produce a
 structured analysis: a summary, the tech stack, an architecture explanation,
